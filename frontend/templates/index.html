@@ -105,24 +105,6 @@
         `;
     }
 }
-
-//         function displayResponse(elementId, data) {
-//     const container = document.getElementById(elementId);
-    
-//     // Handle write operations differently
-//     if (data.message.includes("Write successful")) {
-//         container.innerHTML = `
-//             <div class="response-line"><strong>Raw:</strong> ${data.raw_response || '7D'}</div>
-//             <div class="response-line">${data.message}</div>
-//         `;
-//     } else {
-//         // Existing read/error display logic
-//         container.innerHTML = `
-//             <div class="response-line"><strong>Raw:</strong> ${data.raw_response || 'None'}</div>
-//             <div class="response-line">${data.message}</div>
-//         `;
-//     }
-// }
         
         // Update all your API call handlers like this:
         function readMemory() {
@@ -142,30 +124,7 @@
                     displayResponse('readResponse', data);
                 }
             });
-        }
-
-//         // Update all API calls to check 'success' flag
-// function readMemory() {
-//     fetch('/api/read_memory', {
-//         method: 'POST',
-//         headers: { 'Content-Type: 'application/json' },
-//         body: JSON.stringify({ 
-//             address: document.getElementById('readAddr').value,
-//             length: document.getElementById('readLen').value
-//         })
-//     })
-//     .then(response => response.json())
-//     .then(data => {
-//         console.log("Full response:", data);  // Debug
-//         displayResponse('readResponse', data);
-//     })
-//     .catch(error => {
-//         document.getElementById('readResponse').innerHTML = `
-//             <div class="error">Network error: ${error.message}</div>
-//         `;
-//     });
-// }
-        
+        }   
         
         function writeMemory() {
             const addr = document.getElementById('writeAddr').value;
@@ -189,56 +148,56 @@
             });
         }
         
-        // function readDataId() {
-        //     const dataId = document.getElementById('dataId').value;
-            
-        //     fetch('/api/read_data_id', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify({ data_id: dataId })
-        //     })
-        //     .then(response => response.json())
-        //     // .then(data => {
-        //     //     document.getElementById('dataIdResponse').innerText = data.response || 'No response';
-        //     // });
-        //     .then(data => {
-        //         if (data.error) {
-        //             displayResponse('dataIdResponse', data);
-        //         } else {
-        //             displayResponse('dataIdResponse', data);
-        //         }
-        //     });
-        // }
         function readDataId() {
-    fetch('/api/read_data_id', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data_id: 'F100' })
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Full API response:", data);  // Check if raw_response exists
-        displayResponse('dataIdResponse', data);
-    });
-}
-        
-        function ecuReset() {
-            fetch('/api/ecu_reset', {
+            const dataId = document.getElementById('dataId').value;
+            
+            fetch('/api/read_data_id', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data_id: dataId })
             })
             .then(response => response.json())
             // .then(data => {
-            //     document.getElementById('resetResponse').innerText = data.response || 'No response';
+            //     document.getElementById('dataIdResponse').innerText = data.response || 'No response';
             // });
             .then(data => {
                 if (data.error) {
-                    displayResponse('resetResponse', data);
+                    displayResponse('dataIdResponse', data);
                 } else {
-                    displayResponse('resetResponse', data);
+                    displayResponse('dataIdResponse', data);
                 }
             });
         }
+
+function ecuReset() {
+    fetch('/api/ecu_reset', {
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json'  // Must match exactly
+    },
+    body: JSON.stringify({})  // Send empty object if no data needed
+})
+.then(response => {
+        console.log("[Frontend] Raw response:", response);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("[Frontend] Parsed data:", data);
+        displayResponse('resetResponse', data);
+    })
+    .catch(error => {
+        console.error("[Frontend] Reset failed:", error);
+        responseDiv.innerHTML = `
+            <div class="error">
+                <strong>Error:</strong> ${error.message}
+            </div>
+        `;
+    });
+}
+        
     </script>
 </body>
 </html>

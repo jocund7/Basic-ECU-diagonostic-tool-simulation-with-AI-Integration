@@ -60,20 +60,13 @@ std::vector<uint8_t> UDSHandler::handleReadMemory(const std::vector<uint8_t>& re
     uint32_t address = (request[1] << 16) | (request[2] << 8) | request[3];
     uint8_t length = request[4];
     // Debug print to verify address
-    std::cout << "DEBUG - Requested address: 0x" << std::hex << address << std::endl;
+    // std::cout << "DEBUG - Requested address: 0x" << std::hex << address << std::endl;
     
     if (address >= ecu_memory_.size()) {  // Check against actual memory size
         std::cerr << "ERROR - Address 0x" << std::hex << address 
                   << " exceeds memory size 0x" << ecu_memory_.size() << std::endl;
         return {0x7F, SERVICE_READ_MEMORY, 0x31};
     }
-    // if (address + length > 0xFFFFF) {  // Now matches address space
-    //     return {0x7F, SERVICE_READ_MEMORY, 0x31};
-    // }
-   
-    // if (address + length > ecu_memory_.size()) {
-    //     return {0x7F, SERVICE_READ_MEMORY, 0x31}; // Request out of range
-    // }
     
     std::vector<uint8_t> response = {SERVICE_READ_MEMORY + 0x40}; // Positive response
     response.insert(response.end(), ecu_memory_.begin() + address, 
@@ -101,55 +94,38 @@ std::vector<uint8_t> UDSHandler::handleWriteMemory(const std::vector<uint8_t>& r
 }
 
 std::vector<uint8_t> UDSHandler::handleECUReset(const std::vector<uint8_t>& request) {
+
+    // std::cout << "\n=== ECU Reset Triggered ===" << std::endl;
+    // std::cout << "Request Data: ";
+    // for (auto b : request) printf("%02X ", b);
+    // std::cout << "\nResetting ECU memory..." << std::endl;
+
     // Simple reset simulation - just reinitialize memory
     initializeECUMemory();
     return {SERVICE_ECU_RESET + 0x40}; // Positive response
 }
 
-// std::vector<uint8_t> UDSHandler::handleReadDataByIdentifier(const std::vector<uint8_t>& request) {
-//     // Format: [0x22, data_id_high, data_id_low]
-//     if (request.size() < 3) {
-//         return {0x7F, SERVICE_READ_DATA_ID, 0x13}; // Incorrect message length
-//     }
-    
-//     uint16_t data_id = (request[1] << 8) | request[2];
-    
-//     // Example data identifiers
-//     switch (data_id) {
-//         case 0xF100: // ECU Serial Number
-//             return {SERVICE_READ_DATA_ID + 0x40, 0xF1, 0x00, 'E', 'C', 'U', '1', '2', '3', '4', '5'};
-//         case 0xF200: // Software Version
-//             return {SERVICE_READ_DATA_ID + 0x40, 0xF2, 0x00, '1', '.', '0', '.', '0'};
-//         default:
-//             return {0x7F, SERVICE_READ_DATA_ID, 0x31}; // Request out of range
-//     }
-// }
-
 std::vector<uint8_t> UDSHandler::handleReadDataByIdentifier(const std::vector<uint8_t>& request) {
-    // ... existing code ...
+    // Format: [0x22, data_id_high, data_id_low]
     if (request.size() < 3) {
         return {0x7F, SERVICE_READ_DATA_ID, 0x13}; // Incorrect message length
     }
-    
+
     uint16_t data_id = (request[1] << 8) | request[2];
-    std::vector<uint8_t> response;
+    
+    // Debug print to verify DID
+    // std::cout << "DEBUG - Requested DID: 0x" << std::hex << data_id << std::endl;
+
     switch (data_id) {
-        case 0xF100:
-            response = {0x62, 0xF1, 0x00, 'E', 'C', 'U', '1', '2', '3', '4', '5'};
-            break;
-        case 0xF200:
-            response = {0x62, 0xF2, 0x00, '1', '.', '0', '.', '0'};
-            break;
+        case 0xF100: // ECU Serial Number
+            return {SERVICE_READ_DATA_ID + 0x40, 0xF1, 0x00, 
+                    'E', 'C', 'U', '1', '2', '3', '4', '5'}; // ASCII "ECU12345"
+            
+        case 0xF200: // Software Version
+            return {SERVICE_READ_DATA_ID + 0x40, 0xF2, 0x00, 
+                    '1', '.', '0', '.', '0'}; // ASCII "1.0.0"
+            
         default:
-            response = {0x7F, 0x22, 0x31}; // Service 0x22, NRC 0x31
+            return {0x7F, SERVICE_READ_DATA_ID, 0x31}; // Request out of range
     }
-
-    // Debug print
-    std::cout << "Backend Response: ";
-    for (uint8_t byte : response) {
-        printf("%02X ", byte);
-    }
-    std::cout << std::endl;
-
-    return response;
 }
