@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/uds_server.dir/ecu_simulator.cpp.o CMakeFiles/uds_server.dir/uds_handler.cpp.o -o uds_server 

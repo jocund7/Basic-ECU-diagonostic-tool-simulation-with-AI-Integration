@@ -1,3 +1,0 @@
-/home/jopi5/Documents/ecu_diag/backend/build/CMakeFiles/uds_server.dir
-/home/jopi5/Documents/ecu_diag/backend/build/CMakeFiles/edit_cache.dir
-/home/jopi5/Documents/ecu_diag/backend/build/CMakeFiles/rebuild_cache.dir
