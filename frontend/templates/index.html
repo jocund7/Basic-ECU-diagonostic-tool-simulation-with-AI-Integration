@@ -12,6 +12,23 @@
         .response { background-color: #f5f5f5; padding: 10px; border-radius: 3px; margin-top: 10px; }
         .hex-input { font-family: monospace; }
         
+        .error {
+    color: #d32f2f;
+    background-color: #ffebee;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 5px 0;
+    border-left: 3px solid #d32f2f;
+}
+
+.response {
+    color: #388e3c;
+    background-color: #e8f5e9;
+    padding: 10px;
+    border-radius: 4px;
+    margin: 5px 0;
+    border-left: 3px solid #388e3c;
+}
     </style>
 </head>
 <body>
@@ -53,31 +70,59 @@
     </div>
     
     <script>
-        // function readMemory() {
-        //     const addr = document.getElementById('readAddr').value;
-        //     const len = document.getElementById('readLen').value;
-            
-        //     fetch('/api/read_memory', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify({ address: addr, length: len })
-        //     })
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         document.getElementById('readResponse').innerText = data.response || 'No response';
-        //     });
-        // }
+       // Helper function to format hex
+// function formatHex(input) {
+//     return input.replace(/\s+/g, '')  // Remove existing spaces
+//                .replace(/([0-9A-Fa-f]{2})/g, '$1 ')  // Add space every 2 chars
+//                .trim();
+// }
+
+// // Apply to all hex input fields
+// document.querySelectorAll('.hex-input').forEach(input => {
+//     input.addEventListener('input', function(e) {
+//         this.value = formatHex(e.target.value);
+//     });
+// });
+
         function displayResponse(elementId, data) {
-            const container = document.getElementById(elementId);
-            if (data.error) {
-                container.innerHTML = `<div class="error">ERROR: ${data.error}</div>`;
-            } else {
-                container.innerHTML = `
-                    <div>Raw: ${data.response || 'None'}</div>
-                    <div>${data.message}</div>
-                `;
-            }
-        }
+    const container = document.getElementById(elementId);
+    
+    if (!data.success) {
+        // Error case
+        container.innerHTML = `
+            <div class="error">
+                <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
+                ${data.message}
+            </div>
+        `;
+    } else {
+        // Success case
+        container.innerHTML = `
+            <div class="response">
+                <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
+                ${data.message}
+            </div>
+        `;
+    }
+}
+
+//         function displayResponse(elementId, data) {
+//     const container = document.getElementById(elementId);
+    
+//     // Handle write operations differently
+//     if (data.message.includes("Write successful")) {
+//         container.innerHTML = `
+//             <div class="response-line"><strong>Raw:</strong> ${data.raw_response || '7D'}</div>
+//             <div class="response-line">${data.message}</div>
+//         `;
+//     } else {
+//         // Existing read/error display logic
+//         container.innerHTML = `
+//             <div class="response-line"><strong>Raw:</strong> ${data.raw_response || 'None'}</div>
+//             <div class="response-line">${data.message}</div>
+//         `;
+//     }
+// }
         
         // Update all your API call handlers like this:
         function readMemory() {
@@ -98,6 +143,29 @@
                 }
             });
         }
+
+//         // Update all API calls to check 'success' flag
+// function readMemory() {
+//     fetch('/api/read_memory', {
+//         method: 'POST',
+//         headers: { 'Content-Type: 'application/json' },
+//         body: JSON.stringify({ 
+//             address: document.getElementById('readAddr').value,
+//             length: document.getElementById('readLen').value
+//         })
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         console.log("Full response:", data);  // Debug
+//         displayResponse('readResponse', data);
+//     })
+//     .catch(error => {
+//         document.getElementById('readResponse').innerHTML = `
+//             <div class="error">Network error: ${error.message}</div>
+//         `;
+//     });
+// }
+        
         
         function writeMemory() {
             const addr = document.getElementById('writeAddr').value;

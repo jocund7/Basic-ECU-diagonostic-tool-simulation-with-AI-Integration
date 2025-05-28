@@ -30,27 +30,33 @@ def parse_uds_response(response_hex):
         return "No response from ECU"
     
     try:
-        bytes_list = response_hex.upper().split()  # Force uppercase
+        bytes_list = response_hex.upper().split()
         if not bytes_list:
             return "Empty response"
 
-        # Check for negative response FIRST
+        # Negative response check (must come first!)
         if len(bytes_list) >= 3 and bytes_list[0] == '7F':
             service = int(bytes_list[1], 16)
             nrc = int(bytes_list[2], 16)
             reason = NRC_MESSAGES.get(nrc, f"Unknown error (NRC=0x{nrc:02X})")
             return f"❌ Error (Service 0x{service:02X}): {reason}"
 
-        # Then check positive response
+        # Positive response
         first_byte = int(bytes_list[0], 16)
         if first_byte & 0x40:
             service = first_byte - 0x40
-            data = ' '.join(bytes_list[1:]) if len(bytes_list) > 1 else 'No data'
+            # Handle different service responses
+            if service == 0x23:  # ReadMemory
+                data = ' '.join(bytes_list[1:]) if len(bytes_list) > 1 else 'No data'
+            elif service == 0x3D:  # WriteMemory
+                data = "Write successful"
+            else:
+                data = ' '.join(bytes_list[1:])
             return f"✅ Success (Service 0x{service:02X}): {data}"
 
         return f"Unknown Response: {response_hex}"
-    except ValueError:
-        return f"Invalid response format: {response_hex}"
+    except ValueError as e:
+        return f"Invalid response format: {str(e)}"
     
 # def parse_uds_response(response_hex):
 #     """Convert raw hex response to human-readable format"""
@@ -145,26 +151,47 @@ class UDSClient:
 
 uds_client = UDSClient()
 
+@app.before_request
+def log_request():
+    if request.method == 'POST':
+        print(f"\nRequest: {request.path} | Data: {request.json}")
+
+@app.after_request
+def log_response(response):
+    if request.method == 'POST':
+        data = response.get_json()
+        print(f"Response: {data.get('message')} | Raw: {data.get('raw_response')}")
+    return response
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+# # Update the API endpoints to use parse_uds_response
 # @app.route('/api/read_memory', methods=['POST'])
 # def read_memory():
-#     data = request.json
-#     address = int(data['address'], 16)
-#     length = int(data['length'])
-    
-#     response = uds_client.send_request(
-#         service=0x23,
-#         address=address,
-#         length=length
-#     )
-    
-#     return jsonify({'response': response})
+#     try:
+#         data = request.json
+#         address = int(data['address'], 16)
+#         length = int(data['length'])
+        
+#         if not (0 <= address <= 0xFFFFF):
+#             return jsonify({'error': 'Address out of range (0x00000-0xFFFFF)'}), 400
+#         if not (1 <= length <= 255):
+#             return jsonify({'error': 'Invalid length (1-255)'}), 400
+            
+#         response = uds_client.send_request(
+#             service=0x23,
+#             address=address,
+#             length=length
+#         )
+#         return jsonify({
+#             'response': response,
+#             'message': parse_uds_response(response)
+#         })
+#     except ValueError:
+#         return jsonify({'error': 'Invalid hex format'}), 400
 
-
-# Update the API endpoints to use parse_uds_response
 @app.route('/api/read_memory', methods=['POST'])
 def read_memory():
     try:
@@ -173,21 +200,33 @@ def read_memory():
         length = int(data['length'])
         
         if not (0 <= address <= 0xFFFFF):
-            return jsonify({'error': 'Address out of range (0x00000-0xFFFFF)'}), 400
+            return jsonify({
+                'success': False,
+                'raw_response': '7F 23 31',
+                'message': '❌ Error (Service 0x23): Address out of range'
+            })
+        
         if not (1 <= length <= 255):
-            return jsonify({'error': 'Invalid length (1-255)'}), 400
+            return jsonify({
+                'success': False,
+                'raw_response': '7F 23 31',
+                'message': '❌ Error (Service 0x23): Invalid length (1-255)'
+            })
             
-        response = uds_client.send_request(
-            service=0x23,
-            address=address,
-            length=length
-        )
+        response = uds_client.send_request(service=0x23, address=address, length=length)
+        
         return jsonify({
-            'response': response,
+            'success': True,
+            'raw_response': response,
             'message': parse_uds_response(response)
         })
-    except ValueError:
-        return jsonify({'error': 'Invalid hex format'}), 400
+        
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'raw_response': '7F 23 13',
+            'message': f'❌ Error (Service 0x23): {str(e)}'
+        })
     
 # @app.route('/api/write_memory', methods=['POST'])
 # def write_memory():
@@ -203,31 +242,63 @@ def read_memory():
     
 #     return jsonify({'response': response})
 
+# @app.route('/api/write_memory', methods=['POST'])
+# def write_memory():
+#     data = request.json
+#     try:
+#         address = int(data['address'], 16)
+#         value = data['value']
+        
+#         # Validate hex values
+#         bytes.fromhex(value.replace(' ', ''))
+        
+#         if not (0 <= address <= 0xFFFFF):
+#             return jsonify({'error': 'Address out of range (0x00000-0xFFFFF)'}), 400
+            
+#         response = uds_client.send_request(
+#             service=0x3D,
+#             address=address,
+#             data=value
+#         )
+#         return jsonify({
+#             'raw_response': response,
+#             'message': parse_uds_response(response)
+#         })
+#     except ValueError:
+#         return jsonify({'error': 'Invalid hex format'}), 400
+    
 @app.route('/api/write_memory', methods=['POST'])
 def write_memory():
-    data = request.json
     try:
+        data = request.json
         address = int(data['address'], 16)
         value = data['value']
         
-        # Validate hex values
+        # Validate hex
         bytes.fromhex(value.replace(' ', ''))
-        
+
         if not (0 <= address <= 0xFFFFF):
-            return jsonify({'error': 'Address out of range (0x00000-0xFFFFF)'}), 400
-            
-        response = uds_client.send_request(
-            service=0x3D,
-            address=address,
-            data=value
-        )
+            return jsonify({
+                'success': False,
+                'raw_response': '7F 3D 31',
+                'message': '❌ Error (Service 0x23): Address out of range'
+            })
+        
+        response = uds_client.send_request(service=0x3D, address=address, data=value)
+        
         return jsonify({
-            'raw_response': response,
-            'message': parse_uds_response(response)
+            'success': True,
+            'raw_response': response or '7D',  # Default write confirmation
+            'message': parse_uds_response(response or '7D')
         })
-    except ValueError:
-        return jsonify({'error': 'Invalid hex format'}), 400
-    
+        
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'raw_response': '7F 3D 13',
+            'message': f'❌ Error (Service 0x3D): {str(e)}'
+        })
+
 # @app.route('/api/read_data_id', methods=['POST'])
 # def read_data_id():
 #     data = request.json
