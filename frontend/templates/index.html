@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <title>UDS Diagnostic Tool</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
@@ -28,6 +29,35 @@
     border-radius: 4px;
     margin: 5px 0;
     border-left: 3px solid #388e3c;
+}
+
+
+/* AI Panel */
+.ai-panel {
+    margin-top: 15px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #6f42c1;
+}
+
+.ai-response h4 {
+    color: #6f42c1;
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 15px;
+}
+
+.ai-content {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.response-time {
+    font-size: 12px;
+    color: #6c757d;
+    text-align: right;
+    margin-top: 5px;
 }
     </style>
 </head>
@@ -68,6 +98,12 @@
         <button onclick="ecuReset()">Reset ECU</button>
         <div id="resetResponse" class="response"></div>
     </div>
+
+
+    <div class="panel">
+        <h2>AI Explanation</h2>
+        <!-- <div id="aiExplanation" class="response"></div> -->
+        <div id="aiExplanation" class="ai-panel"></div>
     
     <script>
        // Helper function to format hex
@@ -84,28 +120,131 @@
 //     });
 // });
 
-        function displayResponse(elementId, data) {
+// async function explainUDSResponse(rawHex, context = "") {
+//     const explainDiv = document.getElementById('aiExplanation');
+//     explainDiv.innerHTML = '<div class="info">🔄 Consulting AI...</div>';
+    
+//     try {
+//         const response = await fetch('/api/explain_uds', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({
+//                 raw_response: rawHex,
+//                 context: context
+//             })
+//         });
+//         const data = await response.json();
+//         explainDiv.innerHTML = `
+//             <div class="ai-response">
+//                 <h4>🧠 AI Analysis</h4>
+//                 <p>${data.explanation.replace(/\n/g, '<br>')}</p>
+//             </div>
+//         `;
+//     } catch (error) {
+//         explainDiv.innerHTML = `
+//             <div class="error">
+//                 Failed to get explanation: ${error.message}
+//             </div>
+//         `;
+//     }
+// }
+
+// // Modify displayResponse to include AI explanation
+// function displayResponse(elementId, data) {
+//     // ... existing code ...
+//     explainUDSResponse(data.raw_response, `Operation: ${data.message}`);
+// }
+
+//         function displayResponse(elementId, data) {
+//     const container = document.getElementById(elementId);
+    
+//     if (!data.success) {
+//         // Error case
+//         container.innerHTML = `
+//             <div class="error">
+//                 <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
+//                 ${data.message}
+//             </div>
+//         `;
+//     } else {
+//         // Success case
+//         container.innerHTML = `
+//             <div class="response">
+//                 <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
+//                 ${data.message}
+//             </div>
+//         `;
+//     }
+//     explainUDSResponse(data.raw_response, `Operation: ${data.message}`);
+// }
+    
+// Main display function with AI integration
+function displayResponse(elementId, data) {
     const container = document.getElementById(elementId);
     
-    if (!data.success) {
-        // Error case
-        container.innerHTML = `
+    // 1. First display the basic response
+    container.innerHTML = `
+        <div class="${data.success ? 'response' : 'error'}">
+            <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
+            ${data.message}
+        </div>
+    `;
+    
+    // 2. Then trigger AI explanation (only for valid responses)
+    if (data.raw_response) {
+        triggerAIExplanation(data.raw_response, data.message);
+    }
+}
+
+// Dedicated AI explanation function
+async function triggerAIExplanation(rawHex, context) {
+    const explainDiv = document.getElementById('aiExplanation');
+    if (!explainDiv) return;  // Safety check
+    
+    explainDiv.innerHTML = '<div class="info">🔄 Consulting AI...</div>';
+    
+    try {
+        const response = await fetch('/api/explain_uds', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                raw_response: rawHex,
+                context: `Operation: ${context}`
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const { explanation } = await response.json();
+        renderAIResponse(explanation);
+    } catch (error) {
+        explainDiv.innerHTML = `
             <div class="error">
-                <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
-                ${data.message}
-            </div>
-        `;
-    } else {
-        // Success case
-        container.innerHTML = `
-            <div class="response">
-                <strong>Raw:</strong> ${data.raw_response || 'None'}<br>
-                ${data.message}
+                AI service unavailable: ${error.message}
             </div>
         `;
     }
 }
-        
+
+// Clean rendering function
+function renderAIResponse(explanation) {
+    const explainDiv = document.getElementById('aiExplanation');
+    explainDiv.innerHTML = `
+        <div class="ai-response">
+            <h4>🧠 AI Analysis</h4>
+            <div class="ai-content">${formatExplanation(explanation)}</div>
+            <div class="response-time">${new Date().toLocaleTimeString()}</div>
+        </div>
+    `;
+}
+
+// Helper for Markdown/formatting
+function formatExplanation(text) {
+    // Simple formatting if not using marked.js
+    return text.replace(/\n/g, '<br>')
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
         // Update all your API call handlers like this:
         function readMemory() {
             const addr = document.getElementById('readAddr').value;

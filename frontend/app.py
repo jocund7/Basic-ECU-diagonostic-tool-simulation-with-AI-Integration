@@ -4,6 +4,7 @@ import struct
 import json
 import time
 from threading import Lock
+from llm_helper import UDSExplainAI
 
 app = Flask(__name__)
 lock = Lock()
@@ -23,6 +24,17 @@ NRC_MESSAGES = {
     0x33: "Security access denied",
     0x72: "General programming failure"
 }
+
+ai_explainer = UDSExplainAI()
+
+@app.route('/api/explain_uds', methods=['POST'])
+def explain_uds():
+    data = request.json
+    explanation = ai_explainer.explain_response(
+        raw_response=data.get('raw_response', ''),
+        context=data.get('context', '')
+    )
+    return jsonify({'explanation': explanation})
 
 def parse_uds_response(response_hex):
     """Convert raw hex response to human-readable format"""
